@@ -42,7 +42,7 @@ type Vec3 [3]float32
 
 // Triangle is one facet of an STL mesh.
 //
-// Attribute is the per-triangle ``attribute byte count'' field from the
+// Attribute is the per-triangle “attribute byte count” field from the
 // binary format. The STL specification defines it as zero, but some tools
 // (notably colored-STL extensions) store data there, so it is preserved on
 // read and emitted on write. It is always zero for ASCII input.

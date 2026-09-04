@@ -16,10 +16,10 @@ import (
 var ErrInvalidFormat = errors.New("stl: invalid format")
 
 // detectPeekSize is the number of bytes the auto-detector peeks at the
-// start of the stream. ASCII STL files emit their first ``facet'' keyword
+// start of the stream. ASCII STL files emit their first “facet” keyword
 // well before this offset; binary headers can in principle contain any
 // bytes, so we look for that keyword rather than relying on the leading
-// ``solid'' string (which some binary writers also emit).
+// “solid” string (which some binary writers also emit).
 const detectPeekSize = 512
 
 // Reader streams triangles from an STL input. Construct one with
@@ -186,7 +186,7 @@ func decodeBinaryTriangle(b []byte) Triangle {
 		math.Float32frombits(binary.LittleEndian.Uint32(b[4:8])),
 		math.Float32frombits(binary.LittleEndian.Uint32(b[8:12])),
 	}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		off := 12 + i*12
 		t.Vertices[i] = Vec3{
 			math.Float32frombits(binary.LittleEndian.Uint32(b[off : off+4])),
@@ -268,7 +268,7 @@ func (r *Reader) readASCIITriangle() (Triangle, error) {
 	if err := r.expect("loop"); err != nil {
 		return Triangle{}, err
 	}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if err := r.expect("vertex"); err != nil {
 			return Triangle{}, err
 		}
@@ -316,7 +316,7 @@ func (r *Reader) expect(kw string) error {
 
 func (r *Reader) readVec3() (Vec3, error) {
 	var v Vec3
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		tok, err := r.nextToken()
 		if err != nil {
 			return Vec3{}, err
@@ -334,7 +334,7 @@ func equalFold(a, b string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		ca, cb := a[i], b[i]
 		if ca >= 'A' && ca <= 'Z' {
 			ca += 'a' - 'A'
