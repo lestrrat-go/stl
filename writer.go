@@ -29,15 +29,18 @@ var ErrHeaderAlreadyWritten = errors.New("stl: header already written")
 // fine for ASCII output (no count to patch) but uses memory proportional
 // to the triangle count for binary output.
 type Writer struct {
-	w           io.Writer
-	bw          *bufio.Writer
-	wa          io.WriterAt
-	format      Format
-	name        string
-	binHeader   []byte
-	headerDone  bool
-	closed      bool
-	count       uint32
+	w  io.Writer
+	bw *bufio.Writer
+	wa io.WriterAt
+	// seq is the sequential adapter wrapping wa. It is non-nil exactly
+	// when wa is, and lets Close find the offset of the count field.
+	seq        *writerAtSequential
+	format     Format
+	name       string
+	binHeader  []byte
+	headerDone bool
+	closed     bool
+	count      uint32
 	// binBuf is used by [NewWriter] in binary mode to defer triangle bytes
 	// until Close can prepend the count. It is nil when [NewWriterAt] gives
 	// us a WriterAt to patch in place.
@@ -64,12 +67,14 @@ func NewWriter(w io.Writer, format Format) *Writer {
 // [FormatASCII] the WriterAt aspect is irrelevant and behaviour matches
 // [NewWriter].
 func NewWriterAt(wa io.WriterAt, format Format) *Writer {
+	// w is set to a writer that appends sequentially; we track the
+	// offset manually via count.
+	seq := &writerAtSequential{wa: wa}
 	return &Writer{
-		// w is set to a writer that appends sequentially; we track the
-		// offset manually via count.
-		w:      &writerAtSequential{wa: wa},
+		w:      seq,
 		bw:     nil, // filled in lazily after we know the format
 		wa:     wa,
+		seq:    seq,
 		format: format,
 	}
 }
@@ -144,9 +149,8 @@ func (w *Writer) WriteHeader() error {
 			if err := w.bw.Flush(); err != nil {
 				return err
 			}
-			seq := w.w.(*writerAtSequential)
-			w.binCountOff = seq.off
-			seq.off += 4
+			w.binCountOff = w.seq.off
+			w.seq.off += 4
 		}
 		// In the buffered path we don't write anything else yet; the
 		// 4-byte count and accumulated triangles are emitted in Close.
@@ -231,7 +235,7 @@ func encodeBinaryTriangle(b []byte, t Triangle) {
 	putF32(b[0:4], t.Normal[0])
 	putF32(b[4:8], t.Normal[1])
 	putF32(b[8:12], t.Normal[2])
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		off := 12 + i*12
 		putF32(b[off:off+4], t.Vertices[i][0])
 		putF32(b[off+4:off+8], t.Vertices[i][1])
@@ -264,7 +268,7 @@ func writeASCIITriangle(w *bufio.Writer, t Triangle) error {
 	if _, err := w.WriteString("\n    outer loop\n"); err != nil {
 		return err
 	}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if _, err := w.WriteString("      vertex "); err != nil {
 			return err
 		}

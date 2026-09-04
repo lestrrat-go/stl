@@ -50,6 +50,7 @@ func TestRoundTrip(t *testing.T) {
 		{"binary", stl.FormatBinary},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var buf bytes.Buffer
 			require.NoError(t, stl.Encode(&buf, src, tc.format))
 
